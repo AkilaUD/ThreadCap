@@ -22,7 +22,7 @@ export default defineRailway(() => {
   });
 
   const web = service("web", {
-    build: "pnpm --filter @threadcap/web build",
+    build: "pnpm --filter @threadcap/shared-types build && pnpm --filter @threadcap/ui build && pnpm --filter @threadcap/web build",
     start: "pnpm --filter @threadcap/web start",
     healthcheck: "/",
     replicas: { iad: 1 },
