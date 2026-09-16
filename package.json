@@ -16,6 +16,7 @@
     "db:migrate:down": "pnpm --filter @threadcap/db down"
   },
   "devDependencies": {
+    "railway": "^3.11.0",
     "turbo": "^2.5.0",
     "typescript": "^5.8.0",
     "vitest": "^3.1.0"
