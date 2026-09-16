@@ -1,23 +1,12 @@
-import { defineRailway, github, project, service, volume } from "railway/iac";
+import { defineRailway, project, service, volume } from "railway/iac";
 
 export default defineRailway(() => {
-  const apiSource = github("AkilaUD/ThreadCap", {
-    branch: "master",
-    rootDirectory: "apps/api",
-  });
-
-  const webSource = github("AkilaUD/ThreadCap", {
-    branch: "master",
-    rootDirectory: "apps/web",
-  });
-
   const uploads = volume("uploads", {
     region: "us-west2",
     sizeMB: 500,
   });
 
   const api = service("api", {
-    source: apiSource,
     build: "pnpm --filter @threadcap/shared-types build && pnpm --filter @threadcap/capsule-core build && pnpm --filter @threadcap/api build",
     start: "pnpm --filter @threadcap/api start",
     healthcheck: "/healthz",
@@ -33,7 +22,6 @@ export default defineRailway(() => {
   });
 
   const web = service("web", {
-    source: webSource,
     build: "pnpm --filter @threadcap/web build",
     start: "pnpm --filter @threadcap/web start",
     healthcheck: "/",
