@@ -3,3 +3,7 @@ packages:
   - "packages/*"
   - "infrastructure/*"
   - "tests"
+
+allowBuilds:
+  esbuild: true
+  "@tailwindcss/oxide": true
