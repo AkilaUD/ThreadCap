@@ -10,6 +10,7 @@
       "outputs": ["coverage/**"]
     },
     "typecheck": {
+      "dependsOn": ["^build"],
       "outputs": []
     },
     "lint": {
