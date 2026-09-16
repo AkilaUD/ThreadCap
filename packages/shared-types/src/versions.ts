@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import { Section, SectionRef } from './capsule.js';
-import { CapsuleId, VersionId } from './ids.js';
+import { CapsuleIdSchema, VersionIdSchema } from './ids.js';
 
 export const CapsuleVersion = z.object({
-  id: VersionId,
-  capsuleId: CapsuleId,
+  id: VersionIdSchema,
+  capsuleId: CapsuleIdSchema,
   versionNumber: z.number().int().positive(),
-  parentId: VersionId.nullable(),
+  parentId: VersionIdSchema.nullable(),
   sections: z.array(Section),
   contentHash: z.string(),
   changeSummary: z.string().default(''),

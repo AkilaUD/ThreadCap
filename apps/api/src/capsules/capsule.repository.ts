@@ -49,7 +49,7 @@ export class InMemoryCapsuleRepository implements CapsuleRepository {
       title: 'ThreadCap spec',
       sections: [
         { id: 's_sum', kind: 'summary', name: 'Summary', content: 'Capsule-based context OS for AI. Never start from zero again.' },
-        { id: 's_dec', kind: 'decisions', name: 'Decisions', content: 'D-020 free-first hosting · D-021 merged api+mcp service.' },
+        { id: 's_dec', kind: 'decisions', name: 'Decisions', content: 'D-020 free-first hosting; D-021 merged api+mcp service.' },
       ],
       createdAt: new Date(now - 3600_000).toISOString(),
       updatedAt: new Date(now - 3600_000).toISOString(),

@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { ApiKeyId } from './ids.js';
+import { ApiKeyIdSchema } from './ids.js';
 
 /** Introspection response for MCP/skills `cht_*` keys (docs/06-mcp.md). */
 export const KeyIntrospect = z.object({
-  keyId: ApiKeyId,
+  keyId: ApiKeyIdSchema,
   name: z.string(),
   scopes: z.array(z.string()).default([]),
   lastUsedAt: z.string().datetime().nullable(),

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CapsuleId, WorkspaceId } from './ids.js';
+import { CapsuleIdSchema, WorkspaceIdSchema } from './ids.js';
 
 export const CapsuleStatus = z.enum(['draft', 'active', 'archived']);
 export type CapsuleStatus = z.infer<typeof CapsuleStatus>;
@@ -41,8 +41,8 @@ export const CaptureMessage = z.object({
 export type CaptureMessage = z.infer<typeof CaptureMessage>;
 
 export const CapsuleDTO = z.object({
-  id: CapsuleId,
-  workspaceId: WorkspaceId,
+  id: CapsuleIdSchema,
+  workspaceId: WorkspaceIdSchema,
   projectRef: z.string().nullable(),
   status: CapsuleStatus,
   tags: z.array(z.string()).default([]),
@@ -58,7 +58,7 @@ export const CapsuleDTO = z.object({
 export type CapsuleDTO = z.infer<typeof CapsuleDTO>;
 
 export const CreateCapsuleRequest = z.object({
-  workspaceId: WorkspaceId,
+  workspaceId: WorkspaceIdSchema,
   title: z.string().trim().min(1).max(200).optional(),
   projectRef: z.string().max(120).nullable().optional(),
   messages: z.array(CaptureMessage).max(500).default([]),

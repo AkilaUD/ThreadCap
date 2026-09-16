@@ -21,7 +21,7 @@ export class CapsulesService {
     const now = new Date().toISOString();
     const sections = toSections(input.title, input.messages);
     const capsule: CapsuleDTO = {
-      id: newPrefixedId('cap_'),
+      id: newPrefixedId('cap_') as CapsuleDTO['id'],
       workspaceId: input.workspaceId,
       projectRef: input.projectRef ?? null,
       status: 'draft',

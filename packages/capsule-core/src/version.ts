@@ -17,10 +17,10 @@ export async function buildNextVersion(input: {
   const changes = diffSections(input.prevSections, input.nextSections);
   const changeSummary = generateChangeSummary(changes);
   return {
-    id: `ver_${crypto.randomUUID().replaceAll('-', '')}`,
-    capsuleId: input.capsuleId,
+    id: `ver_${crypto.randomUUID().replaceAll('-', '')}` as CapsuleVersion['id'],
+    capsuleId: input.capsuleId as CapsuleVersion['capsuleId'],
     versionNumber: input.versionNumber,
-    parentId: input.parentId,
+    parentId: input.parentId as CapsuleVersion['parentId'],
     sections: [...input.nextSections],
     contentHash: hash,
     changeSummary,

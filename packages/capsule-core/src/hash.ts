@@ -5,7 +5,7 @@ import type { Section } from '@threadcap/shared-types';
  * Uses Web Crypto (crypto.subtle) — runs in Node 19+ and browsers.
  * See: docs/03-capsule-schema.md §7 content hash.
  */
-export async function contentHash(sections: Section[]): Promise<string> {
+export async function contentHash(sections: readonly Section[]): Promise<string> {
   const canonical = JSON.stringify(
     sections.map((s) => ({ id: s.id, kind: s.kind, name: s.name, content: s.content })),
   );

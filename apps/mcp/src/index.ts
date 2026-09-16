@@ -14,14 +14,18 @@ const server = new McpServer(
 
 server.registerTool(
   'echo',
-  { text: z.string() },
+  { title: 'Echo', inputSchema: { text: z.string() } },
   async ({ text }) => ({ content: [{ type: 'text', text }] }),
 );
 
 server.registerTool(
   'server_info',
   {
-    workspaceId: z.string().startsWith('ws_').describe('workspace id to target (replace with authed value)'),
+    title: 'Server info',
+    description: 'ThreadCap MCP server status and REST API target',
+    inputSchema: {
+      workspaceId: z.string().startsWith('ws_').describe('workspace id to target (replace with authed value)'),
+    },
   },
   async ({ workspaceId }) => {
     const apiBase = process.env.THREADCAP_API_BASE_URL ?? 'http://localhost:8080/v1';

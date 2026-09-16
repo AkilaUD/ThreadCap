@@ -47,7 +47,13 @@ export class BodyErrorFilter implements ExceptionFilter {
         code = status === HttpStatus.BAD_REQUEST ? 'VALIDATION_ERROR' : 'INVALID_REQUEST';
       } else {
         const b = body as { message?: unknown; error?: string };
-        message = Array.isArray(b.message) ? b.message.join('; ') : (b.message ?? exception.message);
+        const raw = Array.isArray(b.message) ? b.message.join('; ') : b.message;
+        message =
+          typeof raw === 'string'
+            ? raw
+            : raw && typeof raw === 'object'
+              ? JSON.stringify(raw)
+              : exception.message;
         code = status === HttpStatus.BAD_REQUEST ? 'VALIDATION_ERROR' : 'INVALID_REQUEST';
         details = b;
       }

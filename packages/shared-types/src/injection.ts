@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { InjectionId } from './ids.js';
+import { InjectionIdSchema } from './ids.js';
 
 /** Host platforms the extension can inject into (docs/05-extension.md §4.2). */
 export const InjectionTargetName = z.enum([
@@ -17,7 +17,7 @@ export const InjectionMode = z.enum(['inline', 'attach', 'paste']);
 export type InjectionMode = z.infer<typeof InjectionMode>;
 
 export const PreparedInjection = z.object({
-  id: InjectionId,
+  id: InjectionIdSchema,
   capsuleId: z.string(),
   versionNumber: z.number().int().positive(),
   target: InjectionTargetName,
