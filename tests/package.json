@@ -1,0 +1,9 @@
+{
+  "name": "@threadcap/tests",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "echo 'e2e suite runs via pnpm --filter @threadcap/tests test (Playwright, TODO)'",
+    "test": "echo 'no e2e specs yet — Playwright matrix in docs/09-mvp-acceptance.md §6'"
+  }
+}

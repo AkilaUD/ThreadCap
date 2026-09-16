@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "ThreadCap — Context OS for AI",
+  "version": "0.0.0",
+  "description": "Capture any chat/email thread as a versioned capsule and inject it into any AI. Never start from zero again.",
+  "action": {
+    "default_title": "ThreadCap",
+    "default_popup": "popup.html"
+  },
+  "permissions": ["storage", "activeTab", "scripting"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "host_permissions": ["https://chatgpt.com/*", "https://claude.ai/*", "https://gemini.google.com/*", "https://chat.deepseek.com/*", "https://perplexity.ai/*", "https://mail.google.com/*"]
+}

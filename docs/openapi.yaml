@@ -1,0 +1,986 @@
+openapi: 3.1.0
+info:
+  title: ThreadCap API
+  version: 1.0.0
+  description: >-
+    ThreadCap REST API. Product spec: docs/04-api-contracts.md.
+    Errors use the ThreadCap envelope {requestId, error:{code,message,details}}.
+    Auth: Authorization: Bearer <jwt> (web/extension);
+    X-API-Key: cht_... (MCP/skills). Conventions per docs/00-index.md.
+servers:
+  - url: https://api.threadcap.app/v1
+  - url: http://localhost:3000/v1
+tags:
+  - name: Auth
+  - name: Capsules
+  - name: Capture
+  - name: Search
+  - name: Attachments
+  - name: Injections
+  - name: McpTokens
+  - name: Teams
+  - name: Shares
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/AuthOk' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/AuthOk' }
+        '401': { $ref: '#/components/responses/Error' }
+  /auth/google:
+    post:
+      tags: [Auth]
+      operationId: googleLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [credential]
+              properties:
+                credential: { type: string, description: Google OAuth id_token credential }
+                fullName: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/AuthOk' }
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refresh
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Rotated token pair
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accessToken, refreshToken]
+                properties:
+                  accessToken: { type: string }
+                  refreshToken: { type: string }
+        '401': { $ref: '#/components/responses/Error' }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Logged out }
+  /auth/me:
+    get:
+      tags: [Auth]
+      operationId: me
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+  /capsules:
+    get:
+      tags: [Capsules]
+      operationId: listCapsules
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: tag, in: query, schema: { type: string } }
+        - { name: team, in: query, schema: { type: string } }
+        - { name: project, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [active, archived, deleted], default: active } }
+        - { name: mode, in: query, schema: { type: string, enum: [raw, smart] } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Paged capsule list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, meta]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Capsule' }
+                  meta: { $ref: '#/components/schemas/Meta' }
+    post:
+      tags: [Capsules]
+      operationId: createCapsule
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, content, source]
+              properties:
+                name: { type: string, maxLength: 120 }
+                description: { type: string, maxLength: 500 }
+                teamId: { type: string, nullable: true }
+                projectId: { type: string, nullable: true }
+                tags:
+                  type: array
+                  maxItems: 20
+                  items: { type: string }
+                source: { $ref: '#/components/schemas/Source' }
+                content: { $ref: '#/components/schemas/CapsuleContent' }
+      responses:
+        '201':
+          description: Created capsule + v1
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [capsule, version]
+                properties:
+                  capsule: { $ref: '#/components/schemas/Capsule' }
+                  version: { $ref: '#/components/schemas/CapsuleVersion' }
+        '409': { $ref: '#/components/responses/Error' }
+  /capsules/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, example: cap_01HZX... } }
+    get:
+      tags: [Capsules]
+      operationId: getCapsule
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Capsule wrapper + latestVersion content + live sections
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Capsule' }
+        '404': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [Capsules]
+      operationId: updateCapsule
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 120 }
+                description: { type: string, maxLength: 500 }
+                teamId: { type: string, nullable: true }
+                projectId: { type: string, nullable: true }
+                tags: { type: array, maxItems: 20, items: { type: string } }
+                status: { type: string, enum: [active, archived] }
+      responses:
+        '200': { description: Updated capsule, body Capsule }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [Capsules]
+      operationId: deleteCapsule
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Soft-deleted (purged after 30 days) }
+  /capsules/{id}/versions:
+    post:
+      tags: [Capsules]
+      operationId: createVersion
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                changeSummary: { type: string, maxLength: 300 }
+                content: { $ref: '#/components/schemas/CapsuleContent' }
+                force: { type: boolean, default: false }
+      responses:
+        '201':
+          description: New version
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version]
+                properties:
+                  version: { $ref: '#/components/schemas/CapsuleVersion' }
+        '409': { $ref: '#/components/responses/Error', description: CAPSULE_UNCHANGED when hash equals current and !force }
+    get:
+      tags: [Capsules]
+      operationId: listVersions
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 20 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Version list (metadata only)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/CapsuleVersion' }
+                  meta: { $ref: '#/components/schemas/Meta' }
+  /versions/{versionId}:
+    get:
+      tags: [Capsules]
+      operationId: getVersion
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Full version incl. content
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CapsuleVersion' }
+        '404': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [Capsules]
+      operationId: editLatestVersion
+      security: [{ bearerAuth: [] }]
+      description: Inline edit — always creates vN+1; 409 VERSION_NOT_CURRENT if not current.
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { $ref: '#/components/schemas/CapsuleContent' }
+                changeSummary: { type: string, maxLength: 300 }
+      responses:
+        '201':
+          description: New version created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: { $ref: '#/components/schemas/CapsuleVersion' }
+        '409': { $ref: '#/components/responses/Error' }
+  /versions/{versionId}/rollback:
+    post:
+      tags: [Capsules]
+      operationId: rollback
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: versionId, in: path, required: true, schema: { type: string } }
+      responses:
+        '201':
+          description: New version cloning :versionId content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: { $ref: '#/components/schemas/CapsuleVersion' }
+  /capture:
+    post:
+      tags: [Capture]
+      operationId: startCapture
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform, mode, messages]
+              properties:
+                platform: { type: string, enum: [chatgpt, claude, gemini, gmail, terminal, web] }
+                projectRef: { type: string, nullable: true }
+                mode: { type: string, enum: [raw, smart] }
+                messages:
+                  type: array
+                  maxItems: 500
+                  items: { $ref: '#/components/schemas/Message' }
+                attachments:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name: { type: string }
+                      mimeType: { type: string }
+                      size: { type: integer }
+                      uploadToken: { type: string }
+                target:
+                  type: object
+                  properties:
+                    capsuleId: { type: string, nullable: true }
+                    action: { type: string, enum: [new, new_version] }
+                    refresh: { type: boolean, description: 'live-capsule re-harvest (D-013): create vN+1 + driftDiff; false = create capsule only' }
+                    driftDiff: { type: boolean, description: 'return driftDiff with vN+1 when refresh=true' }
+      responses:
+        '202':
+          description: Capture session started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CaptureSession' }
+        '422': { $ref: '#/components/responses/Error' }
+  /capture/{sessionId}:
+    get:
+      tags: [Capture]
+      operationId: getCapture
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: sessionId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Capture progress
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CaptureSession' }
+  /search:
+    get:
+      tags: [Search]
+      operationId: search
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string } }
+        - { name: capsuleId, in: query, schema: { type: string } }
+        - { name: team, in: query, schema: { type: string } }
+        - { name: project, in: query, schema: { type: string } }
+        - { name: kind, in: query, schema: { type: string, enum: [all, capsule, message, attachment], default: all } }
+        - { name: limit, in: query, schema: { type: integer, default: 20 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Hybrid search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        kind: { type: string }
+                        id: { type: string }
+                        capsuleId: { type: string }
+                        versionId: { type: string, nullable: true }
+                        snippet: { type: string }
+                        score: { type: number }
+                        href: { type: string }
+                  meta: { $ref: '#/components/schemas/Meta' }
+  /attachments/presign:
+    post:
+      tags: [Attachments]
+      operationId: presign
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename, mimeType, size]
+              properties:
+                filename: { type: string }
+                mimeType: { type: string }
+                size: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Signed upload URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attachmentRef:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      uploadUrl: { type: string, format: uri }
+                      expiresIn: { type: integer }
+  /attachments:
+    post:
+      tags: [Attachments]
+      operationId: registerAttachment
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, name, mimeType, size]
+              properties:
+                id: { type: string }
+                name: { type: string }
+                mimeType: { type: string }
+                size: { type: integer }
+                contentHash: { type: string }
+                meta:
+                  type: object
+                  properties:
+                    parsed: { type: boolean }
+                    text: { type: string }
+      responses:
+        '201':
+          description: Attachment registered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Attachment' }
+  /attachments/{id}:
+    get:
+      tags: [Attachments]
+      operationId: getAttachment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Attachment + signed read URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attachment: { $ref: '#/components/schemas/Attachment' }
+                  readUrl: { type: string }
+                  capsuleIds: { type: array, items: { type: string } }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [Attachments]
+      operationId: deleteAttachment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Soft-deleted }
+  /injections/prepare:
+    post:
+      tags: [Injections]
+      operationId: prepareInjection
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [capsuleId, mode, target]
+              properties:
+                capsuleId: { type: string }
+                versionId: { type: string, nullable: true }
+                mode: { type: string, enum: [full, smart, summary, custom, attach] }
+                target: { type: string, enum: [chatgpt, claude, gemini, gmail, ide, mcp, web] }
+                composerSession: { type: string, nullable: true }
+                purpose: { type: string, enum: [recap, handoff, review, build], description: 'purpose-driven brief (D-012); selects smallest viable section set' }
+                maxTokens: { type: integer, minimum: 256, maximum: 64000, description: 'budget contract; BUDGET_EXCEEDED 200-with-cheapest-variant on overrun' }
+                include:
+                  type: object
+                  additionalProperties: { type: boolean }
+                attachAsFile: { type: boolean, description: 'attach-as-file mode (D-017): render brevity block for the host file/reference picker instead of inline composer text' }
+                sectionOrder:
+                  type: string
+                  enum: [importance]
+                  description: 'anti lost-in-the-middle: sections emit front-loaded by purpose relevance, flat, single depth'
+      responses:
+        '200':
+          description: Deterministic payload + fingerprint (no side effects)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InjectionPrepare' }
+  /injections:
+    post:
+      tags: [Injections]
+      operationId: recordInjection
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [capsuleId, versionId, target, tokens, fingerprint]
+              properties:
+                capsuleId: { type: string }
+                versionId: { type: string }
+                target: { type: string }
+                composerSession: { type: string, nullable: true }
+                mode: { type: string, enum: [full, smart, summary, custom] }
+                tokens: { type: integer }
+                stealth: { type: boolean, default: true }
+                fingerprint: { type: string }
+      responses:
+        '201':
+          description: Injection recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  injection:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      deduped: { type: boolean, default: false }
+        '409':
+          $ref: '#/components/responses/Error'
+          description: INJECTION_DUPLICATE
+  /mcp-tokens:
+    post:
+      tags: [McpTokens]
+      operationId: createToken
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 60 }
+                scopes:
+                  type: array
+                  items: { type: string, enum: [capsules:read, capsules:write] }
+                  default: [capsules:read]
+      responses:
+        '201':
+          description: Token created (secret shown once)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string, example: cht_xxxxxxxxxxxxxxxxxxxxxxxxxx }
+        '403': { $ref: '#/components/responses/Error', description: TOKEN_LIMIT_REACHED }
+    get:
+      tags: [McpTokens]
+      operationId: listTokens
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Token metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        prefix: { type: string }
+                        scopes: { type: array, items: { type: string } }
+                        lastUsedAt: { type: string, nullable: true }
+                        createdAt: { type: string }
+                        revokedAt: { type: string, nullable: true }
+  /mcp-tokens/{id}:
+    delete:
+      tags: [McpTokens]
+      operationId: revokeToken
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Revoked }
+  /teams:
+    get:
+      tags: [Teams]
+      operationId: listTeams
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Teams with membership
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Team' }
+    post:
+      tags: [Teams]
+      operationId: createTeam
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 80 }
+                folder: { type: string }
+      responses:
+        '201':
+          description: Team created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  team: { $ref: '#/components/schemas/Team' }
+        '402': { $ref: '#/components/responses/Error', description: TRIAL_EXPIRED }
+        '403': { $ref: '#/components/responses/Error', description: PLAN_REQUIRED }
+  /teams/{id}/members:
+    post:
+      tags: [Teams]
+      operationId: addMember
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                email: { type: string }
+                userId: { type: string }
+                role: { type: string, enum: [admin, contributor, viewer] }
+      responses:
+        '201': { description: Member added }
+  /capsules/{id}/shares:
+    post:
+      tags: [Shares]
+      operationId: createShare
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expiresAt: { type: string, format: date-time, nullable: true }
+      responses:
+        '201':
+          description: Read-only share link
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  url: { type: string }
+  /shares/{token}:
+    get:
+      tags: [Shares]
+      operationId: getShare
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Public read of capsule (conversation stripped by default)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  capsule: { $ref: '#/components/schemas/Capsule' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [Shares]
+      operationId: deleteShare
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Revoked }
+  /capsules/import-share:
+    post:
+      tags: [Capsules]
+      operationId: importShare
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, format: uri }
+      responses:
+        '202':
+          description: Capture session (reuses /capture)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CaptureSession' }
+        '422': { $ref: '#/components/responses/Error' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  responses:
+    Error:
+      description: ThreadCap error envelope
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    AuthOk:
+      description: Authenticated
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [user, accessToken, refreshToken]
+            properties:
+              user: { $ref: '#/components/schemas/User' }
+              accessToken: { type: string }
+              refreshToken: { type: string }
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [requestId, error]
+      properties:
+        requestId: { type: string, example: req_01HZX... }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, example: CAPSULE_NOT_FOUND }
+            message: { type: string }
+            details:
+              oneOf:
+                - { type: object }
+                - { type: 'null' }
+    Meta:
+      type: object
+      properties:
+        nextCursor: { type: string, nullable: true }
+        total: { type: integer }
+    RegisterRequest:
+      type: object
+      required: [email, password, fullName]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 12, maxLength: 128 }
+        fullName: { type: string, minLength: 1, maxLength: 80 }
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+        fullName: { type: string }
+        avatarUrl: { type: string, nullable: true }
+        plan: { type: string, enum: [free, pro, team] }
+        trial:
+          type: object
+          properties:
+            endsAt: { type: string, format: date-time, nullable: true }
+        prefs:
+          type: object
+          properties:
+            dynamicContext: { type: boolean }
+            stealthInjection: { type: boolean }
+    Source:
+      type: object
+      required: [platform]
+      properties:
+        platform: { type: string, enum: [chatgpt, claude, gemini, gmail, terminal, web, manual] }
+        projectRef: { type: string, nullable: true }
+        capturedAt: { type: string, format: date-time }
+    Message:
+      type: object
+      required: [role, content, ts]
+      properties:
+        role: { type: string, enum: [user, assistant, system] }
+        content: { type: string }
+        ts: { type: string, format: date-time }
+        sourceTool: { type: string }
+        tokenEstimate: { type: integer }
+    ContextItem:
+      type: object
+      required: [id, text]
+      properties:
+        id: { type: string }
+        text: { type: string }
+        status: { type: string, enum: [open, accepted, superseded, rejected] }
+    CapsuleContent:
+      type: object
+      required: [objective, background, requirements, constraints, decisions, assumptions, openQuestions, conversation, attachments, links, summary]
+      properties:
+        objective: { type: string }
+        background: { type: string }
+        requirements: { type: array, items: { $ref: '#/components/schemas/ContextItem' } }
+        constraints: { type: array, items: { $ref: '#/components/schemas/ContextItem' } }
+        decisions: { type: array, items: { $ref: '#/components/schemas/ContextItem' } }
+        assumptions: { type: array, items: { $ref: '#/components/schemas/ContextItem' } }
+        openQuestions: { type: array, items: { $ref: '#/components/schemas/ContextItem' } }
+        conversation: { type: array, items: { $ref: '#/components/schemas/Message' } }
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              mimeType: { type: string }
+              size: { type: integer }
+              role: { type: string, enum: [source, generated, manual] }
+        links:
+          type: array
+          items:
+            type: object
+            properties:
+              url: { type: string }
+              label: { type: string }
+        summary: { type: string }
+    CapsuleVersion:
+      type: object
+      required: [id, capsuleId, versionNumber, changeSummary, content, contentHash, createdAt]
+      properties:
+        id: { type: string }
+        capsuleId: { type: string }
+        versionNumber: { type: integer }
+        parentVersionId: { type: string, nullable: true }
+        branchId: { type: string, nullable: true }
+        authorId: { type: string }
+        changeSummary: { type: string }
+        content: { $ref: '#/components/schemas/CapsuleContent' }
+        contentHash: { type: string }
+        tokenEstimate: { type: integer }
+        isCurrent: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    Capsule:
+      type: object
+      required: [id, workspaceId, name, status, source, versionCount, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        workspaceId: { type: string }
+        teamId: { type: string, nullable: true }
+        projectId: { type: string, nullable: true }
+        name: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [active, archived, deleted] }
+        source: { $ref: '#/components/schemas/Source' }
+        tags: { type: array, items: { type: string } }
+        primaryTag: { type: string, nullable: true }
+        versionCount: { type: integer }
+        currentVersionId: { type: string, nullable: true }
+        latestVersion: { $ref: '#/components/schemas/CapsuleVersion' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Attachment:
+      type: object
+      required: [id, name, mimeType, size]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        mimeType: { type: string }
+        size: { type: integer }
+        contentHash: { type: string }
+        parsed: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    CaptureSession:
+      type: object
+      required: [sessionId, status, progressPct]
+      properties:
+        sessionId: { type: string }
+        status: { type: string, enum: [pending, scanning, extracting, summarizing, saving, done, error] }
+        progressPct: { type: integer, minimum: 0, maximum: 100 }
+        stage: { type: string, nullable: true }
+        error:
+          type: object
+          nullable: true
+          properties:
+            code: { type: string }
+            message: { type: string }
+        result:
+          type: object
+          nullable: true
+          properties:
+            capsuleId: { type: string }
+            versionId: { type: string }
+    InjectionPrepare:
+      type: object
+      required: [payload, format, tokenEstimate, fingerprint, capsuleId, versionId]
+      properties:
+        payload:
+          type: object
+          description: Deterministic context package (title, objective, sections, links)
+        format: { type: string, enum: [markdown, text] }
+        tokenEstimate: { type: integer }
+        chars: { type: integer }
+        fingerprint: { type: string }
+        capsuleId: { type: string }
+        versionId: { type: string }
+        purpose: { type: string, enum: [recap, handoff, review, build, null], nullable: true }
+        maxTokens: { type: integer, nullable: true }
+        budgetExceeded: { type: boolean, description: 'true when requested budget < viable minimum; payload then holds cheapest variant + excludedSections' }
+        excludedSections:
+          type: array
+          items: { type: string }
+        attachAsFile:
+          type: object
+          nullable: true
+          properties:
+            briefMarkdown: { type: string, description: 'front-loaded brevity block (objective + top decisions) for attach-as-file mode' }
+            fileName: { type: string, example: 'Ecoru-revamp-v12.context.md' }
+    Team:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        folder: { type: string, nullable: true }
+        goldenPrompt: { type: string, nullable: true }
+        role: { type: string, enum: [owner, admin, contributor, viewer] }
+        memberCount: { type: integer }
+        capsuleCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+  # V2 stubs (referred to by docs/04 §2/§4/§10)
+  x-v2-stubs:
+    - POST /v1/capsules/{id}/split
+    - POST /v1/capsules/merge
+    - POST /v1/search/qa
+    - POST /v1/webhooks

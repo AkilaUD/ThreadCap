@@ -1,0 +1,10 @@
+{
+  "name": "@threadcap/lander",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'Astro lander dev: TODO (docs/07-ux-screens.md landing demo)'",
+    "build": "echo 'Astro lander build: TODO — static demo'"
+  }
+}

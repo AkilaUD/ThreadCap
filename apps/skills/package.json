@@ -1,0 +1,9 @@
+{
+  "name": "@threadcap/skills",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "echo 'skills are static files (SKILL.md + setup.sh) — no build'",
+    "lint": "echo 'no lint'"
+  }
+}

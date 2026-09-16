@@ -1,0 +1,14 @@
+{
+  "name": "@threadcap/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "up": "node run-migrate.mjs up",
+    "down": "node run-migrate.mjs down",
+    "build": "echo 'db runs via node, no build'"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}
