@@ -1,8 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
 
-@Controller('health')
+@Controller()
 export class HealthController {
-  @Get()
+  @Get(['health', 'healthz'])
   check(): { status: string; service: string; uptime: number } {
     return { status: 'ok', service: 'threadcap-api', uptime: process.uptime() };
   }
